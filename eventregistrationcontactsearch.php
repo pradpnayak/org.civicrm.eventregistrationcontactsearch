@@ -133,3 +133,45 @@ function eventregistrationcontactsearch_civicrm_alterSettingsFolders(&$metaDataF
 function eventregistrationcontactsearch_civicrm_entityTypes(&$entityTypes) {
   _eventregistrationcontactsearch_civix_civicrm_entityTypes($entityTypes);
 }
+
+/**
+ * Implements hook_civicrm_buildForm().
+ *
+ * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_buildForm
+ */
+function eventregistrationcontactsearch_civicrm_buildForm($formName, &$form) {
+  if (in_array($formName, [
+      'CRM_Event_Form_Registration_AdditionalParticipant',
+      'CRM_Event_Form_Registration_Register'
+    ]) && $form->_values['event']['is_multiple_registrations']
+  ) {
+    if ($formName == 'CRM_Event_Form_Registration_Register'
+      && $form->getContactID() !== 0
+    ) {
+      return;
+    }
+    $onlinePaymentProcessorEnabled = FALSE;
+    if (!empty($form->getVar('_paymentProcessors'))) {
+      foreach ($form->getVar('_paymentProcessors') as $key => $name) {
+        if ($name['billing_mode'] == 1) {
+          $onlinePaymentProcessorEnabled = TRUE;
+        }
+      }
+    }
+    if ($formName == 'CRM_Event_Form_Registration_AdditionalParticipant') {
+      $customPre = $form->_values['custom_pre_id'];
+      $customPost = $form->_values['custom_post_id'];
+      $form->_values['custom_pre_id'] = $form->_values['additional_custom_pre_id'];
+      $form->_values['custom_post_id'] = $form->_values['additional_custom_post_id'];
+    }
+    $form->addCIDZeroOptions($onlinePaymentProcessorEnabled);
+    $form->assign('nocid', TRUE);
+    if ($formName == 'CRM_Event_Form_Registration_AdditionalParticipant') {
+      $form->_values['custom_pre_id'] = $customPre;
+      $form->_values['custom_post_id'] = $customPost;
+      CRM_Core_Region::instance('page-body')->add([
+        'template' => 'CRM/EventRegistrationContactSearch/CidZero.tpl',
+      ]);
+    }
+  }
+}
